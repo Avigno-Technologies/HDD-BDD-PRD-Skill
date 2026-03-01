@@ -30,7 +30,7 @@ The skill handles concept-through-PRD. It does NOT generate code, scaffold proje
 
 ---
 
-## 6-Step Workflow
+## 7-Step Workflow
 
 ### Step 1: Agent Hypothesis
 **Goal:** Define what you're building and why -- as a testable hypothesis.
@@ -90,23 +90,45 @@ The skill handles concept-through-PRD. It does NOT generate code, scaffold proje
 **Challenge moment:** Journeys that don't trace back to a hypothesis get flagged.
 
 ### Step 4: Stack Selection & Architecture
-**Goal:** Map validated capabilities to specific plugins and define component architecture.
+**Goal:** Map validated capabilities to specific plugins, select LLM model, choose testing frameworks, and define component architecture.
 
 **Stack manifest format:**
 ```
 Frontend:     [framework] -> deployed to [Vercel]
 AI Backend:   [Claude API / Agent SDK] -> [API routes]
+LLM Model:    [opus / sonnet / haiku] -> [single / tiered]
 Knowledge:    [Pinecone index] / [none] -> [embedding model]
 Data:         [Supabase] / [none] -> [tables needed]
 Integrations: [Firecrawl] / [Stripe] / [other] -> [specific tools]
 Auth:         [Supabase Auth] / [none] -> [auth flows]
+Testing:      [vitest / jest / pytest] -> unit + integration
+E2E:          [playwright / cypress / none] -> user journey coverage
+Regression:   [CI pipeline / prompt suite / manual] -> change protection
 ```
+
+**LLM Model Selection:** Guide user through choosing the right model (Opus for complex reasoning, Sonnet for most agents, Haiku for high-volume simple tasks). Support tiered strategies for agents with diverse query complexity.
+
+**Testing Framework Selection:** Every agent app needs testing from day one. Default to Vitest + Playwright + CI pipeline. AI agents are especially prone to regression from model behavior shifts.
 
 **Per component:** Which hypothesis it serves, which plugin implements it, configuration needed.
 
 **Challenge moment:** "You selected N integrations for an MVP. Can we cut to fewer for v1?"
 
-### Step 5: Validation Plan
+### Step 5: Cost Modeling & Unit Economics
+**Goal:** Calculate per-user costs and reality-check the business model before proceeding.
+
+**Cost components:** LLM API calls (usually the largest expense), embedding/RAG costs, infrastructure (Vercel, Supabase, etc.), third-party API costs.
+
+**Viability gate (hard checkpoint):**
+- **Viable (margin > 50%):** Proceed to validation
+- **Marginal (margin 20-50%):** Explore cost reduction levers before proceeding
+- **Unviable (margin < 20% or negative):** Must revise stack, model, capabilities, or pricing before continuing
+
+**Cost reduction levers:** Model downgrade, tiered models, response caching, reduced RAG queries, interaction limits, self-hosting.
+
+**Challenge moment:** "Your agent costs $X/user/month but you'd charge $Y. Is this sustainable?"
+
+### Step 6: Validation Plan
 **Goal:** Define how to test each hypothesis before investing fully.
 
 **Validation methods:**
@@ -121,18 +143,19 @@ Auth:         [Supabase Auth] / [none] -> [auth flows]
 
 **Output:** Prioritized validation sequence -- what to test first, what can wait.
 
-### Step 6: Generate Build Spec PRD
+### Step 7: Generate Build Spec PRD
 **Goal:** Output a single markdown document structured for machine consumption.
 
 **PRD structure:**
 1. Agent Hypothesis (core hypothesis with falsification)
 2. Capability Manifest (table: capability | hypothesis | plugin | config)
 3. User Journeys (JTBD journeys with hypothesis traceability)
-4. Architecture (tech stack manifest, component map, data flow)
-5. Build Sequence (ordered phases referencing specific plugins)
-6. Validation Plan (prioritized hypothesis tests)
-7. Traceability Matrix (hypothesis -> capability -> journey -> component -> build step)
-8. Open Questions & Non-Goals
+4. Architecture (tech stack manifest incl. LLM model + testing, component map, data flow)
+5. Cost Model (per-user unit economics, viability assessment)
+6. Build Sequence (ordered phases referencing specific plugins)
+7. Validation Plan (prioritized hypothesis tests)
+8. Traceability Matrix (hypothesis -> capability -> journey -> component -> build step)
+9. Open Questions & Non-Goals
 
 ---
 
@@ -187,10 +210,20 @@ capabilities:
 stack:
   frontend: "[framework]"
   ai: "[model/sdk]"
+  model:
+    primary: "[opus|sonnet|haiku]"
+    strategy: "[single|tiered]"
   knowledge: "[pinecone|none]"
   data: "[supabase|none]"
   integrations: ["[list]"]
+  testing:
+    unit: "[vitest|jest|pytest]"
+    e2e: "[playwright|cypress|none]"
+    regression: "[ci-pipeline|prompt-suite|manual|none]"
   deploy: "vercel"
+cost_per_user_month: "[estimated $X.XX]"
+target_price_month: "[planned $X.XX]"
+gross_margin_pct: "[estimated X%]"
 hypotheses_count: [N]
 validated: false
 status: "draft"
@@ -228,10 +261,10 @@ Connects every layer: Hypothesis -> Capability -> Journey -> Component -> Build 
 
 ```
 ai-agent-app-prd/
-├── SKILL.md                      # Main workflow (the 6 steps)
+├── SKILL.md                      # Main workflow (the 7 steps)
 ├── assets/
-│   ├── build-spec-template.md    # PRD output template
-│   └── capability-menu.md        # Reference: all capabilities + plugin mappings
+│   ├── build-spec-template.md    # PRD output template (incl. cost model, testing, model selection)
+│   └── capability-menu.md        # Reference: capabilities + plugins + LLM models + testing frameworks
 └── references/
     ├── hypothesis-patterns.md    # Patterns for agent hypotheses
     └── validation-methods.md     # Experiment types for AI agents
@@ -252,3 +285,7 @@ Lives as a sibling to `hypothesis-driven-prd/` in the same repository.
 | Target user | Solo builder / indie hacker | Skill = thought partner that covers all angles |
 | Depth modes | Quick (~10 min) and Thorough (~30 min) | Flexibility for repeat builders vs. new concepts |
 | Repo location | Same repo, sibling directory | Shared lineage, cross-reference potential |
+| LLM model selection | Added to Step 4 (Stack Selection) | Model choice drives both cost and capability -- must be explicit |
+| Testing frameworks | Added to Step 4 (Stack Selection) | AI agents are regression-prone; testing must be part of the spec |
+| Cost modeling | New Step 5 (between Stack Selection and Validation) | Unit economics viability gate prevents building unsustainable apps |
+| Viability gate | Hard checkpoint at Step 5 | If costs exceed revenue potential, PRD must be revised before proceeding |

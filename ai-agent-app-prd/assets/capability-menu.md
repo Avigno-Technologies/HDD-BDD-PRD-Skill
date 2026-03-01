@@ -1,6 +1,6 @@
 # Capability Menu and Plugin Mapping
 
-Canonical reference for Step 2 (Capability Hypotheses) and Step 4 (Stack Selection) of the AI Agent App PRD skill. Use this to map capabilities to plugins, choose your stack, and identify simpler alternatives that may be sufficient for your MVP.
+Canonical reference for Step 2 (Capability Hypotheses) and Step 4 (Stack Selection) of the AI Agent App PRD skill. Use this to map capabilities to plugins, choose your stack, select LLM models, configure testing frameworks, and identify simpler alternatives that may be sufficient for your MVP.
 
 ---
 
@@ -241,6 +241,147 @@ Configuration and usage details for each plugin available to the skill. Use thes
 
 ---
 
+## LLM Model Menu
+
+Reference for Step 4 (Stack Selection — LLM Model Selection). Choose the right model for your agent based on capability requirements, cost constraints, and expected interaction complexity.
+
+---
+
+### Claude Opus
+
+**Capability tier:** Highest
+**Best for:** Complex multi-step reasoning, nuanced analysis, sophisticated tool orchestration, tasks requiring deep understanding of context
+**Cost:** ~$15 / 1M input tokens, ~$75 / 1M output tokens
+**Speed:** Slowest of the three tiers
+**Context window:** 200K tokens
+
+**When to choose:**
+- The agent handles complex, multi-step workflows (e.g., research synthesis, legal analysis)
+- Accuracy on edge cases is critical (e.g., medical, financial, compliance domains)
+- The agent needs to reason across multiple tools and data sources in a single turn
+- Users expect expert-level quality and will pay a premium
+
+**When to avoid:**
+- High-volume, low-complexity interactions (FAQ bots, simple lookups)
+- Cost-sensitive consumer applications
+- Latency-sensitive real-time interactions
+
+---
+
+### Claude Sonnet (Recommended Default)
+
+**Capability tier:** Strong
+**Best for:** Balanced capability and cost, most agent applications, good tool use, strong reasoning
+**Cost:** ~$3 / 1M input tokens, ~$15 / 1M output tokens
+**Speed:** Fast
+**Context window:** 200K tokens
+
+**When to choose:**
+- Most agent applications — this is the right default unless you have a specific reason to go higher or lower
+- The agent uses 1-3 tools per interaction
+- Users expect quality responses but cost matters
+- You need a balance of reasoning quality and response speed
+
+**When to avoid:**
+- The simplest possible interactions where Haiku would suffice
+- Tasks requiring the absolute highest reasoning capability
+
+---
+
+### Claude Haiku
+
+**Capability tier:** Good
+**Best for:** High-volume simple tasks, fast responses, cost-minimized applications, classification, extraction, simple Q&A
+**Cost:** ~$0.25 / 1M input tokens, ~$1.25 / 1M output tokens
+**Speed:** Fastest
+**Context window:** 200K tokens
+
+**When to choose:**
+- Simple, well-defined tasks (classification, extraction, basic Q&A)
+- High-volume interactions where cost per query matters most
+- Latency-sensitive applications (real-time chat, autocomplete)
+- As the "fast" tier in a multi-model strategy
+
+**When to avoid:**
+- Complex multi-step reasoning or tool orchestration
+- Tasks requiring nuanced understanding or creative output
+- When accuracy on edge cases is critical
+
+---
+
+### Tiered Model Strategies
+
+For agents with diverse interaction types, use multiple models:
+
+| Strategy | Primary | Secondary | Use When |
+|----------|---------|-----------|----------|
+| Single model | Sonnet | -- | Most agents, simplest architecture |
+| Cost-optimized | Haiku | Sonnet (fallback) | High-volume with occasional complex queries |
+| Quality-optimized | Sonnet | Opus (escalation) | Professional tools where some queries need deep reasoning |
+| Full tiered | Haiku → Sonnet → Opus | Router logic | Enterprise agents with diverse query complexity |
+
+**Routing approaches for tiered strategies:**
+- **Keyword-based:** Route based on query length, keywords, or user-selected mode
+- **Classifier:** Use Haiku to classify query complexity, then route to appropriate model
+- **User-selected:** Let users choose "quick" vs "thorough" mode
+- **Fallback:** Start with cheaper model, escalate if response quality is low
+
+---
+
+## Testing Framework Menu
+
+Reference for Step 4 (Stack Selection — Testing Framework Selection). Every agent app needs testing infrastructure from day one. AI agents are especially prone to regression because model behavior can shift between versions.
+
+---
+
+### Unit Testing
+
+| Framework | Language | Best For | Key Features |
+|-----------|----------|----------|-------------|
+| **Vitest** | TypeScript/JS | Next.js projects (recommended) | Fast, ESM-native, Jest-compatible API, built-in coverage |
+| **Jest** | TypeScript/JS | React/Node projects | Large ecosystem, snapshot testing, mature tooling |
+| **Pytest** | Python | Python Agent SDK projects | Fixtures, parametrize, extensive plugin ecosystem |
+
+**What to unit test in an agent app:**
+- Tool function logic (input validation, output formatting)
+- API route handlers (request parsing, response structure)
+- Data transformation functions (embedding prep, response parsing)
+- Utility functions (token counting, cost calculation, rate limiting)
+
+---
+
+### End-to-End Testing
+
+| Framework | Best For | Key Features |
+|-----------|----------|-------------|
+| **Playwright** (recommended) | Cross-browser testing, also available as a capability plugin | Multi-browser, auto-wait, network interception, visual comparison |
+| **Cypress** | Single-browser testing, component testing | Real-time reloading, time-travel debugging, good DX |
+
+**What to e2e test in an agent app:**
+- Core user journeys (from JTBD mapping in Step 3)
+- Onboarding flow (first-time user experience)
+- Error states (agent failure, API timeout, empty results)
+- Authentication flows (if applicable)
+
+---
+
+### Regression Testing Strategy
+
+| Approach | Effort | Coverage | When to Use |
+|----------|--------|----------|-------------|
+| **CI pipeline** (recommended) | Medium setup, low ongoing | High | Always — run tests on every push |
+| **Prompt regression suite** | Medium | AI-specific | When agent uses complex prompts — test key queries produce expected outputs |
+| **Snapshot testing** | Low | Medium | For stable API responses — detect unexpected changes |
+| **Manual** | High ongoing | Variable | Only for pre-launch validation, not ongoing |
+
+**AI-specific regression concerns:**
+- Model version updates can change agent behavior
+- Prompt changes can break working interactions
+- Tool schema changes can cause silent failures
+- RAG index updates can shift retrieval quality
+
+---
+
 ## Stack Manifest Template
 
 Fill in this template during Step 4 (Stack Selection) to document your chosen stack. Every bracket is a decision point. Cross-reference your capability hypotheses from Step 2 to justify each choice.
@@ -248,10 +389,14 @@ Fill in this template during Step 4 (Stack Selection) to document your chosen st
 ```
 Frontend:     [next.js | react | other] -> deployed to [Vercel]
 AI Backend:   [Claude API | Agent SDK (Python) | Agent SDK (TypeScript)] -> [API routes | standalone]
+LLM Model:    [opus | sonnet | haiku] -> [single | tiered: list routing strategy]
 Knowledge:    [Pinecone index | none] -> [multilingual-e5-large | llama-text-embed-v2 | none]
 Data:         [Supabase | none] -> [tables: list | none]
 Integrations: [Firecrawl | Stripe | Playwright | custom MCP | none]
 Auth:         [Supabase Auth | none] -> [email/password | OAuth | magic link | none]
+Testing:      [vitest | jest | pytest] -> unit + integration
+E2E:          [playwright | cypress | none] -> user journey coverage
+Regression:   [CI pipeline | prompt suite | manual | none] -> change protection
 Deploy:       Vercel
 ```
 
@@ -261,6 +406,8 @@ Deploy:       Vercel
 
 **AI Backend:** Use Agent SDK (TypeScript) if your frontend is Next.js (same language, shared types). Use Agent SDK (Python) if you prefer Python or need Python-specific libraries. Use Claude API directly only for the simplest agents that do not need tool use.
 
+**LLM Model:** Default to Sonnet unless you have a specific reason to go higher (Opus for complex reasoning) or lower (Haiku for high-volume simple tasks). For tiered strategies, specify the routing approach. See LLM Model Menu above for detailed guidance.
+
 **Knowledge:** Choose `none` unless your Step 2 hypothesis specifically justifies RAG. If included, prefer `multilingual-e5-large` for general-purpose use and `llama-text-embed-v2` for long documents and structured content.
 
 **Data:** Choose `none` unless your agent needs persistent, user-specific data. If included, list the tables you expect to need (e.g., `users, conversations, documents`).
@@ -268,6 +415,12 @@ Deploy:       Vercel
 **Integrations:** List only the integrations justified by capability hypotheses. An empty list is a valid and often correct answer for an MVP.
 
 **Auth:** Choose `none` unless the agent serves multiple users who need private data. If included, prefer `magic link` for the lowest-friction onboarding.
+
+**Testing:** Default to Vitest for TypeScript/Next.js projects, Pytest for Python. Always include unit testing — there is no valid reason to skip it.
+
+**E2E:** Default to Playwright (recommended). Skip only for CLI-only or API-only agents with no user-facing frontend.
+
+**Regression:** Default to CI pipeline. At minimum, maintain a prompt regression suite that tests your top 3 user journeys against expected outputs.
 
 **Deploy:** Vercel is the default. Override only if you have existing infrastructure requirements.
 
@@ -289,14 +442,20 @@ Pre-validated combinations for quick selection. Each combination has been tested
 ```
 Frontend:     next.js -> deployed to Vercel
 AI Backend:   Agent SDK (TypeScript) -> API routes
+LLM Model:    sonnet -> single
 Knowledge:    none
 Data:         none
 Integrations: none
 Auth:         none
+Testing:      vitest -> unit + integration
+E2E:          playwright -> user journey coverage
+Regression:   CI pipeline -> change protection
 Deploy:       Vercel
 ```
 
 **Typical use case:** A single-purpose conversational agent with a well-defined domain that fits entirely in a system prompt (e.g., a customer FAQ bot, a writing assistant, a code explainer).
+
+**Estimated cost per user/month:** $0.50-2.00 (low interaction volume, single model)
 
 ---
 
@@ -310,14 +469,20 @@ Deploy:       Vercel
 ```
 Frontend:     next.js -> deployed to Vercel
 AI Backend:   Agent SDK (TypeScript) -> API routes
+LLM Model:    sonnet -> single
 Knowledge:    Pinecone index -> multilingual-e5-large
 Data:         none
 Integrations: none
 Auth:         none
+Testing:      vitest -> unit + integration
+E2E:          playwright -> user journey coverage
+Regression:   CI pipeline + prompt suite -> change protection
 Deploy:       Vercel
 ```
 
 **Typical use case:** An agent that answers questions grounded in a large or frequently updated knowledge base (e.g., internal documentation assistant, regulatory compliance advisor, product support agent).
+
+**Estimated cost per user/month:** $2.00-8.00 (moderate interaction volume, embedding + retrieval costs)
 
 ---
 
@@ -331,14 +496,20 @@ Deploy:       Vercel
 ```
 Frontend:     next.js -> deployed to Vercel
 AI Backend:   Agent SDK (TypeScript) -> API routes
+LLM Model:    sonnet -> single (or tiered: haiku for summarization, sonnet for synthesis)
 Knowledge:    Pinecone index -> multilingual-e5-large
 Data:         none
 Integrations: Firecrawl
 Auth:         none
+Testing:      vitest -> unit + integration
+E2E:          playwright -> user journey coverage
+Regression:   CI pipeline + prompt suite -> change protection
 Deploy:       Vercel
 ```
 
 **Typical use case:** An agent that combines a knowledge base with real-time web research to answer questions that require both stored knowledge and fresh information (e.g., competitive intelligence agent, market research assistant, academic literature reviewer).
+
+**Estimated cost per user/month:** $5.00-20.00 (web scraping costs + higher token volume from synthesis)
 
 ---
 
@@ -352,14 +523,20 @@ Deploy:       Vercel
 ```
 Frontend:     next.js -> deployed to Vercel
 AI Backend:   Agent SDK (TypeScript) -> API routes
+LLM Model:    sonnet -> tiered: haiku for simple queries, sonnet for complex
 Knowledge:    Pinecone index -> multilingual-e5-large
 Data:         Supabase -> tables: users, conversations, documents, subscriptions
 Integrations: Firecrawl, Stripe
 Auth:         Supabase Auth -> magic link
+Testing:      vitest -> unit + integration
+E2E:          playwright -> user journey coverage
+Regression:   CI pipeline + prompt suite -> change protection
 Deploy:       Vercel
 ```
 
 **Typical use case:** A commercial agent product with user accounts, persistent data, a knowledge base, web research, and a subscription model (e.g., a paid research-as-a-service agent, an AI-powered SaaS tool, a professional advisory service).
+
+**Estimated cost per user/month:** $10.00-40.00 (full infrastructure + multiple API costs). Recommended price point: $29-99/month.
 
 ---
 
@@ -373,11 +550,17 @@ Deploy:       Vercel
 ```
 Frontend:     next.js -> deployed to Vercel
 AI Backend:   Agent SDK (TypeScript) -> API routes
+LLM Model:    sonnet -> single
 Knowledge:    none
 Data:         Supabase -> tables: users, tasks, logs
 Integrations: Playwright
 Auth:         Supabase Auth -> email/password
+Testing:      vitest -> unit + integration
+E2E:          playwright -> user journey coverage
+Regression:   CI pipeline -> change protection
 Deploy:       Vercel
 ```
 
 **Typical use case:** An internal agent that automates workflows involving web apps without APIs, stores results in a database, and serves a known set of team members (e.g., data entry automation agent, internal reporting tool, QA testing assistant).
+
+**Estimated cost per user/month:** $3.00-15.00 (moderate interaction volume, browser automation adds latency but not much cost)

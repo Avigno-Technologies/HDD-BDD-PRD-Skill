@@ -1,6 +1,6 @@
 ---
 name: ai-agent-app-prd
-description: Create build-spec PRDs for lightweight AI Agent web apps using hypothesis-driven design. Use when users want to spec AI agent apps, plan AI-powered web applications, design conversational AI tools, or create PRDs for apps that use Claude, RAG, tool-use, or other AI capabilities. Walks through Agent Hypothesis → Capability Hypotheses → User Journeys → Stack Selection → Validation Plan → Build Spec PRD. Outputs a machine-readable PRD structured for direct code generation by Claude Code plugins.
+description: Create build-spec PRDs for lightweight AI Agent web apps using hypothesis-driven design. Use when users want to spec AI agent apps, plan AI-powered web applications, design conversational AI tools, or create PRDs for apps that use Claude, RAG, tool-use, or other AI capabilities. Walks through Agent Hypothesis → Capability Hypotheses → User Journeys → Stack Selection (LLM model + testing frameworks) → Cost Modeling & Unit Economics → Validation Plan → Build Spec PRD. Outputs a machine-readable PRD structured for direct code generation by Claude Code plugins.
 ---
 
 # AI Agent App PRD Generator
@@ -13,9 +13,10 @@ Generate build-spec PRDs for lightweight AI agent web apps — from hypothesis t
 1. Agent Hypothesis → Define what you're building and why
 2. Capability Hypotheses → Justify each AI capability
 3. User Journey Mapping → Define core interactions (JTBD)
-4. Stack Selection → Map capabilities to plugins
-5. Validation Plan → Design experiments before building
-6. Generate Build Spec PRD → Machine-readable output
+4. Stack Selection → Map capabilities to plugins, select LLM model, choose testing frameworks
+5. Cost Modeling → Calculate per-user unit economics and backend costs
+6. Validation Plan → Design experiments before building
+7. Generate Build Spec PRD → Machine-readable output
 ```
 
 ## Step 0: Initialization
@@ -41,7 +42,7 @@ Before we start building your agent PRD, a few setup questions:
    D. No constraints yet
 ```
 
-Set expectations: "We'll walk through 6 steps: define your agent hypothesis, justify each capability, map user journeys, select a stack, plan validation experiments, and generate a machine-readable build spec PRD. The output is a structured document you can hand to Claude Code to scaffold and build the app."
+Set expectations: "We'll walk through 7 steps: define your agent hypothesis, justify each capability, map user journeys, select a stack (including LLM model and testing frameworks), model your per-user costs, plan validation experiments, and generate a machine-readable build spec PRD. The output is a structured document you can hand to Claude Code to scaffold and build the app."
 
 Adapt depth based on mode. For Quick mode, present likely defaults for confirmation rather than open-ended discovery. For Thorough mode, explore each step with full probing questions.
 
@@ -231,10 +232,14 @@ Map validated capabilities to specific technologies and plugins. Present the sta
 ```
 Frontend:     [next.js | react | other] -> deployed to [Vercel]
 AI Backend:   [Claude API | Agent SDK (Python) | Agent SDK (TypeScript)] -> [API routes | standalone]
+LLM Model:    [opus | sonnet | haiku] -> [single | tiered: list routing strategy]
 Knowledge:    [Pinecone index | none] -> [multilingual-e5-large | llama-text-embed-v2 | none]
 Data:         [Supabase | none] -> [tables: list | none]
 Integrations: [Firecrawl | Stripe | Playwright | custom MCP | none]
 Auth:         [Supabase Auth | none] -> [email/password | OAuth | magic link | none]
+Testing:      [vitest | jest | pytest] -> unit + integration
+E2E:          [playwright | cypress | none] -> user journey coverage
+Regression:   [CI pipeline | prompt suite | manual | none] -> change protection
 Deploy:       Vercel
 ```
 
@@ -256,6 +261,69 @@ capabilities and you can confirm or override:
    B. Agent SDK (Python) — if you prefer Python
    C. Claude API directly — simplest, no tool use
 ```
+
+### LLM Model Selection
+
+Guide the user to choose the right model for their agent. Present the model menu (see `assets/capability-menu.md` for detailed model cards):
+
+```
+Which LLM model should power your agent?
+
+1. Primary model (for main agent interactions):
+   A. Claude Opus — highest capability, best for complex reasoning, highest cost
+   B. Claude Sonnet — strong balance of capability and cost (recommended for most agents)
+   C. Claude Haiku — fastest, cheapest, best for simple/high-volume tasks
+   D. Not sure — help me choose
+
+2. Do you need different models for different tasks?
+   A. Single model for everything (simplest)
+   B. Tiered: fast model for simple tasks, powerful model for complex ones
+   C. Not sure — let's discuss the trade-offs
+```
+
+**Challenge protocol:**
+- If the user picks Opus for a simple FAQ bot, push back: "Opus is powerful but expensive. For straightforward Q&A, Sonnet or Haiku could deliver similar quality at a fraction of the cost. What makes this agent need Opus-level reasoning?"
+- If the user picks Haiku for complex multi-step reasoning, warn: "Haiku is fast and cheap but may struggle with complex tool orchestration or nuanced analysis. Consider Sonnet as your primary model with Haiku for simple subtasks."
+
+### Testing Framework Selection
+
+Every agent app needs testing from day one. Guide the user through testing infrastructure:
+
+```
+Let's set up testing for your agent:
+
+1. Unit testing framework:
+   A. Vitest (recommended for Next.js/TypeScript)
+   B. Jest (widely used, good ecosystem)
+   C. Pytest (if Python backend)
+   D. I have an existing preference — I'll specify
+
+2. End-to-end testing:
+   A. Playwright (recommended — also available as a plugin for browser automation)
+   B. Cypress (popular alternative)
+   C. Skip for now — I'll add e2e later
+   D. Not sure — recommend something
+
+3. What should the testing strategy cover?
+   A. Core agent responses (does the agent answer correctly?)
+   B. Tool integration (do API calls, DB queries, and scraping work?)
+   C. User flows (can a user complete key journeys end-to-end?)
+   D. Regression (do existing features still work after changes?)
+   E. All of the above (recommended)
+```
+
+**For Quick mode:** Default to Vitest + Playwright + all coverage areas. Present for confirmation.
+
+Capture testing decisions as part of the stack manifest:
+```
+Testing:      [vitest | jest | pytest] -> unit + integration
+E2E:          [playwright | cypress | none] -> user journey coverage
+Regression:   [CI pipeline | manual | none] -> change protection
+```
+
+**Challenge protocol:**
+- If the user skips e2e testing, warn: "AI agents are especially prone to regression because model behavior can shift. E2e tests on your core journeys are the cheapest insurance against shipping a broken agent."
+- If no regression strategy, push: "How will you know if a prompt change breaks an existing feature? Even a simple test suite that validates your top 3 journeys prevents embarrassing regressions."
 
 ### Component Map
 
@@ -287,7 +355,127 @@ Summarize the complete stack manifest before proceeding.
 
 (Type 'skip' to move to the next section)
 
-## Step 5: Validation Plan
+## Step 5: Cost Modeling and Unit Economics
+
+Calculate the per-user cost of running the agent and reality-check the business model. **This is a viability gate** — if costs exceed what users will pay, the PRD must be revised before proceeding.
+
+Present the cost framework:
+
+```
+Let's figure out what your agent costs to run per user per month.
+
+We'll estimate costs for each component of your stack:
+```
+
+### Cost Components
+
+Walk through each selected stack component and estimate monthly per-user costs:
+
+```
+For each component, I'll estimate based on your stack selection:
+
+1. LLM API costs (usually the largest expense):
+   - Model: [selected model]
+   - Estimated tokens per interaction: [input tokens + output tokens]
+   - Estimated interactions per user per month: [number]
+   - Cost per 1M tokens: [input price / output price]
+   → Estimated LLM cost per user/month: $[X]
+
+2. Embedding / RAG costs (if applicable):
+   - Embedding model: [selected model]
+   - Queries per user per month: [number]
+   - Index storage (Pinecone): [tier/plan]
+   → Estimated RAG cost per user/month: $[X]
+
+3. Infrastructure costs:
+   - Vercel hosting: [plan/tier]
+   - Supabase (if applicable): [plan/tier]
+   - Firecrawl (if applicable): [plan/tier]
+   → Estimated infra cost per user/month: $[X]
+
+4. Third-party API costs (if applicable):
+   - [Service]: [per-call or per-month cost]
+   → Estimated API cost per user/month: $[X]
+```
+
+### Unit Economics Summary
+
+Present a clear summary table:
+
+```
+UNIT ECONOMICS PER USER/MONTH:
+
+| Cost Component | Monthly Cost |
+|----------------|-------------|
+| LLM API calls | $[X] |
+| Embeddings / RAG | $[X] |
+| Infrastructure | $[X] |
+| Third-party APIs | $[X] |
+| TOTAL COST PER USER | $[X] |
+
+Now let's check viability:
+
+1. What would you charge per user per month?
+   A. Free (ad-supported or lead gen)
+   B. $0-10/month (consumer price point)
+   C. $10-50/month (prosumer/SMB)
+   D. $50-200/month (professional/enterprise)
+   E. Usage-based pricing (per query, per document, etc.)
+   F. Not sure yet — help me think about this
+
+2. Based on these costs, your gross margin would be approximately:
+   Revenue: $[price] - Cost: $[total] = Margin: $[margin] ([X]%)
+```
+
+### Viability Gate
+
+**This is a hard checkpoint.** If costs exceed projected revenue, the skill MUST flag it:
+
+**Viable (margin > 50%):** "Your unit economics look healthy. A $[price] price point with $[cost] costs gives you [X]% gross margin. Proceed to validation."
+
+**Marginal (margin 20-50%):** "Your margins are thin at [X]%. Consider: (a) switching to a cheaper LLM model for routine tasks, (b) reducing the number of interactions per session, (c) caching frequent responses, or (d) raising your price point. Which approach would you like to explore?"
+
+**Unviable (margin < 20% or negative):** "**Warning: Your agent costs $[cost]/user/month but you'd charge $[price]/user/month. This is not a sustainable business.** Before we proceed, you must either: (a) cut capabilities to reduce costs, (b) switch to a cheaper model, (c) increase your price point, or (d) find a different monetization strategy. Which would you like to explore?"
+
+```
+Your agent costs $[X]/user/month to run.
+You plan to charge $[Y]/user/month.
+Gross margin: [Z]%.
+
+Is this viable?
+   A. Yes — margins are acceptable, proceed
+   B. No — let's cut costs (revisit stack/model selection)
+   C. No — let's increase price (revisit value proposition)
+   D. No — let's change the monetization model
+```
+
+**For Quick mode:** Auto-estimate costs from typical usage patterns for the selected stack combination. Present the summary for confirmation.
+
+**For Thorough mode:** Walk through each cost component with detailed assumptions. Ask about expected usage patterns (interactions per session, sessions per month, document volume for RAG).
+
+### Cost Reduction Levers
+
+If costs need to come down, present options:
+
+| Lever | Savings | Trade-off |
+|-------|---------|-----------|
+| Downgrade primary model (e.g., Opus → Sonnet) | 50-80% on LLM costs | Reduced reasoning quality |
+| Use tiered models (Haiku for simple, Sonnet for complex) | 30-60% on LLM costs | Added routing complexity |
+| Cache frequent responses | 20-50% on LLM costs | Stale answers for cached queries |
+| Reduce RAG queries per interaction | 20-40% on RAG costs | Potentially less relevant context |
+| Limit interactions per user/month | Variable | User experience trade-off |
+| Move from managed services to self-hosted | 30-70% on infra | Operational complexity |
+
+**Challenge protocol:**
+- If the user insists on proceeding with negative margins, record it but flag: "Noted. The PRD will include a cost warning. This business model requires either future cost reduction or price increases to be sustainable."
+- If the user's price point is unrealistically high for their target audience, push back: "Your target audience is [segment]. Do similar tools in this space charge $[price]? What's the evidence they'd pay this?"
+- Always ask: "Would you use this agent if you had to pay $[price]/month for it?"
+
+Summarize the cost model before proceeding.
+
+(Type 'skip' to use rough estimates and move on)
+
+## Step 6: Validation Plan
 
 Design experiments to test hypotheses before building the full agent. Reference `references/validation-methods.md` for detailed method descriptions and the sequencing guide.
 
@@ -338,31 +526,32 @@ Summarize the validation plan before proceeding.
 
 (Type 'skip' to move to the next section)
 
-## Step 6: Generate Build Spec PRD
+## Step 7: Generate Build Spec PRD
 
 Announce: "Generating your build spec PRD. This is a machine-readable document structured for direct use with Claude Code plugins."
 
 Use the template from `assets/build-spec-template.md`. Fill in all sections from the preceding steps:
 
-1. **YAML metadata** — agent name, version, date, domain, depth mode, capabilities list, stack summary, hypothesis count, status
+1. **YAML metadata** — agent name, version, date, domain, depth mode, capabilities list, stack summary, model selection, testing stack, hypothesis count, status
 2. **Agent hypothesis** — formatted hypothesis from Step 1
 3. **Capability hypotheses** — all CH statements from Step 2
 4. **Capability manifest** — table mapping capabilities to plugins and config from Steps 2 and 4
 5. **User journeys** — all JTBD journeys from Step 3 with hypothesis traceability
-6. **Architecture** — tech stack table, component map, API routes, data models, data flow from Step 4
-7. **Build sequence** — auto-generated from the stack, ordered by dependency:
-   - Phase 1: Foundation (scaffold project, configure AI backend)
+6. **Architecture** — tech stack table (including LLM model selection and testing infrastructure), component map, API routes, data models, data flow from Step 4
+7. **Cost model** — per-user unit economics, margin analysis, and viability assessment from Step 5
+8. **Build sequence** — auto-generated from the stack, ordered by dependency:
+   - Phase 1: Foundation (scaffold project, configure AI backend, set up testing)
    - Phase 2: Core Agent (implement primary capability, build chat UI)
    - Phase 3: Integration (add secondary capabilities, connect tools)
    - Phase 4: Deploy and Validate (deploy to Vercel, run validation experiments)
-8. **Validation plan** — experiment designs from Step 5
-9. **Traceability matrix** — auto-generated table connecting hypotheses to capabilities, journeys, components, build steps, and validation methods
-10. **Open questions** — collected throughout the conversation
-11. **Non-goals** — collected throughout the conversation
+9. **Validation plan** — experiment designs from Step 6
+10. **Traceability matrix** — auto-generated table connecting hypotheses to capabilities, journeys, components, build steps, and validation methods
+11. **Open questions** — collected throughout the conversation
+12. **Non-goals** — collected throughout the conversation
 
 **Output location:** Ask the user for a preferred directory. Default to the current working directory with filename `prd-[agent-name].md`.
 
-After output: "This PRD is structured as a build spec. You can use it with Claude Code to scaffold and build the app. The build sequence in Section 5 tells you (or Claude Code) what to build in what order."
+After output: "This PRD is structured as a build spec. You can use it with Claude Code to scaffold and build the app. The build sequence in Section 8 tells you (or Claude Code) what to build in what order. The cost model in Section 7 flags any unit economics concerns."
 
 ## Output
 
