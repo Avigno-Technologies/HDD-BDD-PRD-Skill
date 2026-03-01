@@ -1,8 +1,22 @@
-# Hypothesis-Driven PRD Skill
+# PRD Skills for Claude
 
-A Claude skill for creating Product Requirements Documents using Hypothesis-Driven Development (HDD) and Jobs-to-be-Done (JTBD) frameworks.
+A collection of Claude skills for creating Product Requirements Documents using hypothesis-driven frameworks.
 
-## Overview
+## Skills
+
+### 1. Hypothesis-Driven PRD (`hypothesis-driven-prd/`)
+
+Create PRDs using Hypothesis-Driven Development (HDD) and Jobs-to-be-Done (JTBD) frameworks. Best for traditional product requirements where you need to trace from business assumptions to testable features.
+
+### 2. AI Agent App PRD (`ai-agent-app-prd/`) **NEW**
+
+Create build-spec PRDs for lightweight AI Agent web apps. Designed for solo builders who want to rapidly spec and build conversational AI apps with RAG, tool-use, and web deployment. Outputs a machine-readable PRD that maps directly to Claude Code plugins (Pinecone, Firecrawl, Supabase, Stripe, Vercel, etc.) for immediate code generation.
+
+**6-step workflow:** Agent Hypothesis → Capability Hypotheses → User Journeys → Stack Selection → Validation Plan → Build Spec PRD
+
+---
+
+## Hypothesis-Driven PRD
 
 This skill guides product teams through a systematic process that traces from business assumptions to testable requirements:
 
@@ -100,8 +114,22 @@ so I can [outcome/benefit].
 
 ## Documentation
 
-- `hypothesis-driven-prd-overview.md` — Full STAR analysis of the framework design
-- `references/bmc-and-hypotheses.md` — Deep-dive BMC questions and hypothesis patterns
+- `Overview.md` — Full STAR analysis of the HDD PRD framework design
+- `hypothesis-driven-prd/references/bmc-and-hypotheses.md` — Deep-dive BMC questions and hypothesis patterns
+- `docs/plans/2026-03-01-ai-agent-app-prd-skill-design.md` — Design document for the AI Agent App PRD skill
+
+## AI Agent App PRD Structure
+
+```
+ai-agent-app-prd/
+├── SKILL.md                      # Main workflow (6 steps)
+├── assets/
+│   ├── build-spec-template.md    # PRD output template
+│   └── capability-menu.md        # Capabilities + plugin mappings
+└── references/
+    ├── hypothesis-patterns.md    # Agent hypothesis patterns
+    └── validation-methods.md     # Experiment types for AI agents
+```
 
 ## License
 
@@ -109,8 +137,8 @@ MIT
 
 ## Contributing
 
-Issues and PRs welcome. This framework is designed to evolve based on real-world usage.
+Issues and PRs welcome. These frameworks are designed to evolve based on real-world usage.
 
 ---
 
-*Created January 2026*
+*HDD PRD: Created January 2026 | AI Agent App PRD: Created March 2026*
